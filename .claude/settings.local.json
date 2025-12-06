@@ -14,7 +14,8 @@
       "Bash(.venv/Scripts/pytest tests/test_integration.py::TestIntegration -v)",
       "Bash(.venv/Scripts/pyimport2pkg:*)",
       "Bash(.venv/Scripts/pytest tests/test_database.py -v --tb=short)",
-      "Bash(.venv/Scripts/pytest tests/ --collect-only -q)"
+      "Bash(.venv/Scripts/pytest tests/ --collect-only -q)",
+      "Bash(.venv/Scripts/pytest --version)"
     ],
     "deny": [],
     "ask": []
