@@ -1,0 +1,17 @@
+[
+  {
+    "package": "pycobaltix",
+    "error": "not_found",
+    "timestamp": "2025-12-06T08:23:07.945981"
+  },
+  {
+    "package": "umap",
+    "error": "not_found",
+    "timestamp": "2025-12-06T08:23:07.966921"
+  },
+  {
+    "package": "aaaaaaaaa",
+    "error": "not_found",
+    "timestamp": "2025-12-06T08:23:07.988580"
+  }
+]

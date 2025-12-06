@@ -1,0 +1,3 @@
+"""Nested module."""
+
+import yaml
