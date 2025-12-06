@@ -4,7 +4,7 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Latest Release](https://img.shields.io/badge/release-v0.3.0-brightgreen.svg)](https://github.com/buptanswer/pyimport2pkg/releases/tag/v0.3.0)
+[![Latest Release](https://img.shields.io/badge/release-v1.0.0-brightgreen.svg)](https://github.com/buptanswer/pyimport2pkg/releases/tag/v1.0.0)
 
 ## 📋 目录
 
@@ -145,8 +145,8 @@ pyimport2pkg analyze <project_path> [options]
 | 选项 | 说明 | 默认值 |
 |------|------|--------|
 | `-o, --output` | 输出文件路径 | 标准输出 |
-| `-f, --format` | 输出格式 (txt\|json\|simple) | txt |
-| `-t, --target-version` | 目标 Python 版本 | 当前版本 |
+| `-f, --format` | 输出格式 (requirements\|json\|simple) | requirements |
+| `--python-version` | 目标 Python 版本 | 当前版本 |
 
 **示例：**
 
@@ -155,7 +155,7 @@ pyimport2pkg analyze <project_path> [options]
 pyimport2pkg analyze /path/to/project
 
 # 指定目标 Python 版本
-pyimport2pkg analyze . -t 3.11
+pyimport2pkg analyze . --python-version 3.11
 
 # 保存为 JSON 格式
 pyimport2pkg analyze . -o deps.json -f json
@@ -282,6 +282,19 @@ pyimport2pkg db-info
 
 ## 高级特性
 
+### v1.0.0 更新 (2025-12-06)
+
+**首个稳定版本，主要改进：**
+
+- ✅ 全面国际化 - 所有 CLI 输出改为英文
+- ✅ API 稳定性 - 核心类现可从包根目录导入
+- ✅ 修复 JSON 导出版本号（之前硬编码 0.2.0）
+- ✅ JSON 导出现包含未解析的 import
+- ✅ 修正文档中的 API 方法名
+- ✅ 开发状态更新为 Production/Stable
+
+详见 [CHANGELOG v1.0.0](documents/CHANGELOG/CHANGELOG_v1.0.0.md)
+
 ### v0.3.0 新特性
 
 #### 1. 智能增量更新
@@ -403,40 +416,41 @@ python_files = scanner.scan(Path("./my_project"))
 parser = Parser()
 imports = []
 for file_path in python_files:
-    file_imports = parser.parse(file_path)
+    file_imports = parser.parse_file(file_path)
     imports.extend(file_imports)
 
 # 3. 过滤标准库和本地模块
 filter = Filter(project_root=Path("./my_project"))
-filtered = filter.filter(imports)
+third_party, _ = filter.filter_imports(imports)
 
 # 4. 映射到包名
 mapper = Mapper()
-mapping_results = mapper.map(filtered)
+mapping_results = mapper.map_imports(third_party)
 
 # 5. 解决冲突
 resolver = Resolver()
-resolved = resolver.resolve(mapping_results)
+resolved = resolver.resolve_mappings(mapping_results)
 
 # 6. 导出结果
 exporter = Exporter()
-exporter.to_requirements_txt(resolved, "requirements.txt")
-exporter.to_json(resolved, "dependencies.json")
+exporter.export_requirements_txt(resolved, output=Path("requirements.txt"))
+exporter.export_json(resolved, output=Path("dependencies.json"))
 ```
 
 ### 单个查询
 
 ```python
-from pyimport2pkg import Mapper
+from pyimport2pkg import Mapper, ImportInfo
 
 mapper = Mapper()
-result = mapper.map_single("cv2")
-print(result.package_candidates)
-# 输出: [
-#     PackageCandidate(name="opencv-python", downloads=1000000),
-#     PackageCandidate(name="opencv-contrib-python", downloads=500000),
-#     ...
-# ]
+imp = ImportInfo.from_module_name("cv2")
+result = mapper.map_import(imp)
+for candidate in result.candidates:
+    print(f"{candidate.package_name}: {candidate.download_count} 下载")
+# 输出:
+#   opencv-python: 1000000 下载
+#   opencv-contrib-python: 500000 下载
+#   ...
 ```
 
 ### 查询构建状态
