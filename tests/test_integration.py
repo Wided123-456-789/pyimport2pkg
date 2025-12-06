@@ -4,6 +4,7 @@ import pytest
 from pathlib import Path
 import json
 
+from pyimport2pkg import __version__
 from pyimport2pkg.cli import main, create_parser, parse_python_version
 
 
@@ -183,7 +184,7 @@ class TestCLIAnalyze:
 
         # Check meta
         assert data["meta"]["tool"] == "pyimport2pkg"
-        assert data["meta"]["version"] == "0.2.0"
+        assert data["meta"]["version"] == __version__
         assert "generated_at" in data["meta"]
 
     def test_analyze_simple_format(self, sample_project_dir: Path, capsys):
@@ -568,7 +569,7 @@ except ImportError:
 
         # Check structure
         assert data["meta"]["tool"] == "pyimport2pkg"
-        assert data["meta"]["version"] == "0.2.0"
+        assert data["meta"]["version"] == __version__
         assert "generated_at" in data["meta"]
 
         # Check required packages

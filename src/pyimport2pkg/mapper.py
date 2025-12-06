@@ -2,13 +2,13 @@
 Mapper module: Maps import module names to pip package names.
 
 Uses multiple data sources in priority order:
-1. Hardcoded mappings (highest priority)
-2. Namespace package mappings
-3. Database lookup (if available)
-4. Direct mapping guess (module name == package name)
+1. Namespace packages (if submodules exist) - highest priority for google.cloud.* etc.
+2. Hardcoded mappings - known module→package mismatches
+3. Namespace packages (top-level only)
+4. Database lookup (if available)
+5. Direct mapping guess (module name == package name)
 """
 
-from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from .models import ImportInfo, PackageCandidate, MappingResult
@@ -112,7 +112,7 @@ class Mapper:
                 result.is_resolved = True
                 return result
 
-        # 3. Check database if available
+        # 4. Check database if available
         if self.database is not None:
             db_result = self.database.lookup(top_level)
             if db_result:
@@ -130,7 +130,7 @@ class Mapper:
                 result.is_resolved = True
                 return result
 
-        # 4. Guess: assume module name equals package name
+        # 5. Guess: assume module name equals package name
         # This is a fallback and may not always be correct
         result.candidates = [PackageCandidate(
             package_name=top_level,

@@ -268,7 +268,9 @@ def analyze_project(args: argparse.Namespace) -> int:
         )
     elif args.format == "json":
         content = exporter.export_json(
-            required, optional, warnings=warnings,
+            required, optional,
+            unresolved=error_imports,
+            warnings=warnings,
             output=args.output,
         )
     else:  # simple
@@ -299,43 +301,43 @@ def build_db_command(args: argparse.Namespace) -> int:
 
     # Validate conflicting options
     if args.resume and args.rebuild:
-        print("错误: --resume 和 --rebuild 不能同时使用", file=sys.stderr)
+        print("Error: --resume and --rebuild cannot be used together", file=sys.stderr)
         return 1
 
     # Handle --resume: check if there's something to resume
     if args.resume:
         if not progress.has_incomplete_build():
-            print("没有中断的构建可以恢复。", file=sys.stderr)
-            print("提示: 直接运行 build-db --max-packages N 即可扩展数据库", file=sys.stderr)
+            print("No interrupted build to resume.", file=sys.stderr)
+            print("Tip: run build-db --max-packages N to extend the database", file=sys.stderr)
             return 1
         status = progress.get_status()
-        print(f"恢复中断的构建...")
-        print(f"  上次进度: {status['processed']}/{status['total']} 已处理")
-        print(f"  失败数: {status['failed']}")
+        print(f"Resuming interrupted build...")
+        print(f"  Previous progress: {status['processed']}/{status['total']} processed")
+        print(f"  Failed: {status['failed']}")
 
     # Handle --retry-failed
     elif args.retry_failed:
         failed_list = progress.get_failed()
         if not failed_list:
-            print("没有失败的包需要重试。", file=sys.stderr)
+            print("No failed packages to retry.", file=sys.stderr)
             return 1
-        print(f"进度文件中有 {len(failed_list)} 个失败记录")
+        print(f"Found {len(failed_list)} failed packages in progress file")
 
     # Handle --rebuild
     elif args.rebuild:
-        print(f"强制重建数据库...")
+        print(f"Force rebuilding database...")
 
     # Default: smart incremental
     else:
         db = MappingDatabase(db_path)
         if db.exists():
             existing_count = db.get_stats()["packages"]
-            print(f"数据库已有 {existing_count} 个包")
-            print(f"目标: top {args.max_packages} 个包")
+            print(f"Database has {existing_count} packages")
+            print(f"Target: top {args.max_packages} packages")
             db.close()
         else:
-            print(f"创建新数据库: {db_path}")
-            print(f"目标: top {args.max_packages} 个包")
+            print(f"Creating new database: {db_path}")
+            print(f"Target: top {args.max_packages} packages")
 
     async def run():
         return await build_database(
@@ -356,38 +358,38 @@ def build_db_command(args: argparse.Namespace) -> int:
 
     # Check if interrupted
     if stats.get('interrupted'):
-        print(f"\n构建被中断。")
-        print(f"  已处理: {stats['success'] + stats['failed']}")
-        print(f"  成功: {stats['success']}")
-        print(f"  失败: {stats['failed']}")
-        print("\n可以使用以下命令继续:")
-        print("  pyimport2pkg build-db --resume        # 继续处理剩余的包")
-        print("  pyimport2pkg build-db --retry-failed  # 只重试失败的包")
+        print(f"\nBuild interrupted.")
+        print(f"  Processed: {stats['success'] + stats['failed']}")
+        print(f"  Success: {stats['success']}")
+        print(f"  Failed: {stats['failed']}")
+        print("\nUse the following commands to continue:")
+        print("  pyimport2pkg build-db --resume        # Continue processing remaining packages")
+        print("  pyimport2pkg build-db --retry-failed  # Retry only failed packages")
         return 1
 
-    print(f"\n构建完成!")
-    print(f"  本次处理: {stats['total']}")
-    print(f"  成功: {stats['success']}")
-    print(f"  失败: {stats['failed']}")
+    print(f"\nBuild completed!")
+    print(f"  Processed: {stats['total']}")
+    print(f"  Success: {stats['success']}")
+    print(f"  Failed: {stats['failed']}")
     if stats.get('skipped', 0) > 0:
-        print(f"  跳过 (已存在): {stats['skipped']}")
+        print(f"  Skipped (existing): {stats['skipped']}")
 
     # Show error breakdown if there were failures
     if stats.get('error_breakdown'):
-        print(f"\n错误类型统计:")
+        print(f"\nError breakdown:")
         for error_type, count in stats['error_breakdown'].items():
             print(f"  - {error_type}: {count}")
 
     if stats.get('error_log_path'):
-        print(f"\n详细错误日志: {stats['error_log_path']}")
+        print(f"\nError log: {stats['error_log_path']}")
 
     # Show final database stats
     db = MappingDatabase(db_path)
     if db.exists():
         final_stats = db.get_stats()
-        print(f"\n数据库统计:")
-        print(f"  总包数: {final_stats['packages']}")
-        print(f"  模块映射数: {final_stats['mappings']}")
+        print(f"\nDatabase statistics:")
+        print(f"  Total packages: {final_stats['packages']}")
+        print(f"  Module mappings: {final_stats['mappings']}")
         db.close()
 
     return 0
@@ -422,31 +424,31 @@ def build_status_command(args: argparse.Namespace) -> int:
     status = progress.get_status()
 
     if status['status'] == 'none':
-        print("没有构建记录。")
+        print("No build records found.")
         return 0
 
-    print("构建状态:")
-    print(f"  状态: {status['status']}")
-    print(f"  总包数: {status['total']}")
-    print(f"  已处理: {status['processed']}")
-    print(f"  失败数: {status['failed']}")
-    print(f"  开始时间: {status['started_at']}")
-    print(f"  最后更新: {status['last_updated']}")
+    print("Build Status:")
+    print(f"  Status: {status['status']}")
+    print(f"  Total packages: {status['total']}")
+    print(f"  Processed: {status['processed']}")
+    print(f"  Failed: {status['failed']}")
+    print(f"  Started at: {status['started_at']}")
+    print(f"  Last updated: {status['last_updated']}")
 
     if status['status'] == 'interrupted':
         remaining = status['total'] - status['processed']
-        print(f"\n未处理: {remaining} 个包")
-        print("\n可用命令:")
-        print("  pyimport2pkg build-db --resume        # 继续处理")
-        print("  pyimport2pkg build-db --retry-failed  # 重试失败的包")
+        print(f"\nRemaining: {remaining} packages")
+        print("\nAvailable commands:")
+        print("  pyimport2pkg build-db --resume        # Continue processing")
+        print("  pyimport2pkg build-db --retry-failed  # Retry failed packages")
 
     if status['failed'] > 0:
         failed_list = progress.get_failed()
-        print(f"\n失败的包 (前10个):")
+        print(f"\nFailed packages (first 10):")
         for pkg in failed_list[:10]:
             print(f"  - {pkg}")
         if len(failed_list) > 10:
-            print(f"  ... 还有 {len(failed_list) - 10} 个")
+            print(f"  ... and {len(failed_list) - 10} more")
 
     return 0
 

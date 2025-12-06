@@ -463,9 +463,9 @@ class DatabaseBuilder:
         """Setup signal handlers for graceful interrupt."""
         def signal_handler(signum, frame):
             if self._interrupted:
-                print("\n强制退出...", file=sys.stderr)
+                print("\nForce quitting...", file=sys.stderr)
                 sys.exit(1)
-            print("\n正在保存进度，请稍候... (再次按 Ctrl+C 强制退出)", file=sys.stderr)
+            print("\nSaving progress, please wait... (Press Ctrl+C again to force quit)", file=sys.stderr)
             self._interrupted = True
 
         self._original_sigint_handler = signal.signal(signal.SIGINT, signal_handler)
@@ -670,7 +670,7 @@ class DatabaseBuilder:
                 # Only retry failed packages
                 failed_list = self.progress.get_failed()
                 if not failed_list:
-                    return {"message": "没有失败的包需要重试", "total": 0, "success": 0, "failed": 0, "skipped": 0}
+                    return {"message": "No failed packages to retry", "total": 0, "success": 0, "failed": 0, "skipped": 0}
 
                 # Use saved max_packages if available, otherwise use current setting
                 saved_max = self.progress.get_max_packages()
@@ -684,20 +684,20 @@ class DatabaseBuilder:
 
                 package_map = {p["project"]: p for p in all_packages}
                 packages = [package_map[name] for name in failed_list if name in package_map]
-                print(f"重试 {len(packages)} 个失败的包...", file=sys.stderr)
+                print(f"Retrying {len(packages)} failed packages...", file=sys.stderr)
 
             elif resume and self.progress.has_incomplete_build():
                 # Resume interrupted build
                 unprocessed = self.progress.get_unprocessed()
                 if not unprocessed:
-                    return {"message": "没有未处理的包", "total": 0, "success": 0, "failed": 0, "skipped": 0}
+                    return {"message": "No unprocessed packages", "total": 0, "success": 0, "failed": 0, "skipped": 0}
 
                 # Use saved max_packages if available, otherwise use current setting
                 saved_max = self.progress.get_max_packages()
                 if saved_max > 0:
                     original_max = self.max_packages
                     self.max_packages = saved_max
-                    print(f"使用上次构建的包数量限制: {saved_max}", file=sys.stderr)
+                    print(f"Using saved max_packages from last build: {saved_max}", file=sys.stderr)
                     all_packages = await self.fetch_top_packages()
                     self.max_packages = original_max
                 else:
@@ -705,7 +705,7 @@ class DatabaseBuilder:
 
                 package_map = {p["project"]: p for p in all_packages}
                 packages = [package_map[name] for name in unprocessed if name in package_map]
-                print(f"恢复构建: {len(packages)} 个包待处理", file=sys.stderr)
+                print(f"Resuming build: {len(packages)} packages to process", file=sys.stderr)
 
             else:
                 # Default: smart incremental update
@@ -715,18 +715,18 @@ class DatabaseBuilder:
                 packages = [p for p in all_packages if p["project"] not in existing_packages]
 
                 if existing_packages:
-                    print(f"数据库已有 {len(existing_packages)} 个包", file=sys.stderr)
+                    print(f"Database has {len(existing_packages)} packages", file=sys.stderr)
 
                 if not packages:
                     return {
-                        "message": f"数据库已包含 top {len(existing_packages)} 个包，无需更新",
+                        "message": f"Database already contains top {len(existing_packages)} packages, no update needed",
                         "total": 0,
                         "success": 0,
                         "failed": 0,
                         "skipped": len(existing_packages),
                     }
 
-                print(f"将处理 {len(packages)} 个新包", file=sys.stderr)
+                print(f"Will process {len(packages)} new packages", file=sys.stderr)
 
                 # Start new build tracking (save max_packages for resume)
                 package_names = [p["project"] for p in packages]
@@ -734,7 +734,7 @@ class DatabaseBuilder:
 
             total = len(packages)
             if total == 0:
-                return {"message": "没有包需要处理", "total": 0, "success": 0, "failed": 0, "skipped": len(existing_packages)}
+                return {"message": "No packages to process", "total": 0, "success": 0, "failed": 0, "skipped": len(existing_packages)}
 
             # Process packages with semaphore for concurrency control
             semaphore = asyncio.Semaphore(self.concurrency)
@@ -770,7 +770,7 @@ class DatabaseBuilder:
                         self.progress.save()
 
                     if self._processed_count % self.PRINT_INTERVAL == 0 or self._processed_count == total:
-                        print(f"  [{self._processed_count}/{total}] 成功: {self._success_count}, 失败: {self._fail_count}", file=sys.stderr)
+                        print(f"  [{self._processed_count}/{total}] Success: {self._success_count}, Failed: {self._fail_count}", file=sys.stderr)
 
                     if progress_callback:
                         progress_callback(self._processed_count, total, package_name)
@@ -782,20 +782,20 @@ class DatabaseBuilder:
                 if self._consecutive_failures >= self.CONSECUTIVE_FAIL_THRESHOLD:
                     self._pause_count += 1
                     if self._pause_count > self.MAX_PAUSE_COUNT:
-                        print(f"\n连续失败过多，已达到最大暂停次数 ({self.MAX_PAUSE_COUNT})，停止构建。", file=sys.stderr)
+                        print(f"\nToo many consecutive failures, reached max pause count ({self.MAX_PAUSE_COUNT}), stopping build.", file=sys.stderr)
                         return False
 
-                    print(f"\n检测到连续 {self._consecutive_failures} 次失败，可能遇到速率限制。", file=sys.stderr)
-                    print(f"暂停 {self.PAUSE_DURATION} 秒后重试 (第 {self._pause_count}/{self.MAX_PAUSE_COUNT} 次暂停)...", file=sys.stderr)
+                    print(f"\nDetected {self._consecutive_failures} consecutive failures, possible rate limiting.", file=sys.stderr)
+                    print(f"Pausing {self.PAUSE_DURATION} seconds before retry (pause {self._pause_count}/{self.MAX_PAUSE_COUNT})...", file=sys.stderr)
 
                     await asyncio.sleep(self.PAUSE_DURATION)
                     self._consecutive_failures = 0  # Reset after pause
-                    print("继续处理...", file=sys.stderr)
+                    print("Resuming...", file=sys.stderr)
 
                 return True
 
             # Process packages in chunks for memory efficiency
-            print(f"开始处理 (并发数: {self.concurrency}, 分块大小: {self.CHUNK_SIZE})...", file=sys.stderr)
+            print(f"Starting processing (concurrency: {self.concurrency}, chunk size: {self.CHUNK_SIZE})...", file=sys.stderr)
 
             for chunk_start in range(0, len(packages), self.CHUNK_SIZE):
                 if self._interrupted:
@@ -822,7 +822,7 @@ class DatabaseBuilder:
             # Handle completion
             if self._interrupted:
                 self.progress.mark_interrupted()
-                print(f"\n构建已中断。已处理 {self._processed_count}/{total} 个包。", file=sys.stderr)
+                print(f"\nBuild interrupted. Processed {self._processed_count}/{total} packages.", file=sys.stderr)
             else:
                 self.db.set_metadata("last_build", datetime.now().isoformat())
                 self.db.set_metadata("source", TOP_PACKAGES_URL)
@@ -900,7 +900,7 @@ async def build_database(
         if db.db_path.exists():
             db.db_path.unlink()
         progress.clear()
-        print("强制重建: 已清除旧数据库", file=sys.stderr)
+        print("Force rebuild: cleared old database", file=sys.stderr)
 
     builder = DatabaseBuilder(db, max_packages, concurrency, progress)
 

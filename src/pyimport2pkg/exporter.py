@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TextIO
 
+from . import __version__
 from .models import MappingResult, AnalysisResult, ImportInfo, ImportContext
 
 
@@ -126,7 +127,7 @@ class Exporter:
             if conditional_imports:
                 lines.append("")
                 if self.include_comments:
-                    lines.append("# === Conditional imports (if块内，平台/环境相关) ===")
+                    lines.append("# === Conditional imports (platform/environment specific) ===")
 
                 conditional_pkgs = self._get_unique_packages(conditional_imports)
                 for pkg_name in sorted(conditional_pkgs.keys()):
@@ -139,7 +140,7 @@ class Exporter:
             if try_except_imports:
                 lines.append("")
                 if self.include_comments:
-                    lines.append("# === Try-except imports (可选依赖，有替代方案) ===")
+                    lines.append("# === Try-except imports (optional dependencies) ===")
 
                 try_except_pkgs = self._get_unique_packages(try_except_imports)
                 for pkg_name in sorted(try_except_pkgs.keys()):
@@ -166,7 +167,7 @@ class Exporter:
         # Errors section
         if self.include_comments and errors:
             lines.append("")
-            lines.append("# === Errors (需要手动检查) ===")
+            lines.append("# === Errors (manual review required) ===")
             for err in errors:
                 error_type = "Unknown"
                 if err.module_name == "<syntax_error>":
@@ -259,7 +260,7 @@ class Exporter:
             "meta": {
                 "generated_at": datetime.now().isoformat(),
                 "tool": "pyimport2pkg",
-                "version": "0.2.0",
+                "version": __version__,
             },
             "required": [],
             "optional": [],

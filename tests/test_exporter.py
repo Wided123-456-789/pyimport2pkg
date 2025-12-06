@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from io import StringIO
 
+from pyimport2pkg import __version__
 from pyimport2pkg.exporter import Exporter, export_requirements, export_json
 from pyimport2pkg.models import ImportInfo, MappingResult, PackageCandidate, ImportContext
 
@@ -83,7 +84,7 @@ class TestExporterRequirementsTxt:
 
         # Check conditional section exists
         assert "# === Conditional imports" in content
-        assert "if块" in content or "平台" in content
+        assert "platform" in content or "environment" in content
         # Check package is included (not commented out)
         assert "pywin32  # conditional" in content
         # Verify it's NOT a comment line (the package itself)
@@ -118,8 +119,8 @@ class TestExporterRequirementsTxt:
 
         # Check try-except section exists
         assert "# === Try-except imports" in content
-        # Check Chinese description
-        assert "可选依赖" in content or "替代方案" in content
+        # Check English description
+        assert "optional" in content or "dependencies" in content
         # Check package is included as actual entry (not commented)
         assert "ujson  # try_except" in content
         lines = content.split("\n")
@@ -405,7 +406,7 @@ class TestExporterJson:
 
         # Check meta
         assert data["meta"]["tool"] == "pyimport2pkg"
-        assert data["meta"]["version"] == "0.2.0"
+        assert data["meta"]["version"] == __version__
         assert "generated_at" in data["meta"]
 
     def test_json_required_entry_format(self):

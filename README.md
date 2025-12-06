@@ -4,7 +4,7 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Latest Release](https://img.shields.io/badge/release-v0.3.0-brightgreen.svg)](https://github.com/buptanswer/pyimport2pkg/releases/tag/v0.3.0)
+[![Latest Release](https://img.shields.io/badge/release-v1.0.0-brightgreen.svg)](https://github.com/buptanswer/pyimport2pkg/releases/tag/v1.0.0)
 
 **Language**: [English](README.md) | [中文](README.zh_CN.md)
 
@@ -133,7 +133,7 @@ pip install -e ".[dev]"
 
 ```bash
 pyimport2pkg --version
-# pyimport2pkg 0.3.0
+# pyimport2pkg 1.0.0
 ```
 
 ---
@@ -199,8 +199,8 @@ pyimport2pkg analyze <path> [options]
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-o, --output` | Output file path | stdout |
-| `-f, --format` | Format (txt\|json\|simple) | txt |
-| `-t, --target-version` | Target Python version | current |
+| `-f, --format` | Format (requirements\|json\|simple) | requirements |
+| `--python-version` | Target Python version | current |
 
 **Examples:**
 
@@ -209,7 +209,7 @@ pyimport2pkg analyze <path> [options]
 pyimport2pkg analyze /path/to/project
 
 # Specify target Python version
-pyimport2pkg analyze . -t 3.11
+pyimport2pkg analyze . --python-version 3.11
 
 # Save as JSON
 pyimport2pkg analyze . -o deps.json -f json
@@ -408,30 +408,31 @@ files = scanner.scan(Path("./my_project"))
 parser = Parser()
 imports = []
 for file_path in files:
-    imports.extend(parser.parse(file_path))
+    imports.extend(parser.parse_file(file_path))
 
 # 3. Filter stdlib & local modules
 filter = Filter(project_root=Path("./my_project"))
-filtered = filter.filter(imports)
+third_party, _ = filter.filter_imports(imports)
 
 # 4. Map to packages
 mapper = Mapper()
-results = mapper.map(filtered)
+results = mapper.map_imports(third_party)
 
 # 5. Export results
 exporter = Exporter()
-exporter.to_requirements_txt(results, "requirements.txt")
+exporter.export_requirements_txt(results, output=Path("requirements.txt"))
 ```
 
 ### Query Single Module
 
 ```python
-from pyimport2pkg import Mapper
+from pyimport2pkg import Mapper, ImportInfo
 
 mapper = Mapper()
-result = mapper.map_single("cv2")
-for candidate in result.package_candidates:
-    print(f"{candidate.name}: {candidate.download_count} downloads")
+imp = ImportInfo.from_module_name("cv2")
+result = mapper.map_import(imp)
+for candidate in result.candidates:
+    print(f"{candidate.package_name}: {candidate.download_count} downloads")
 ```
 
 ### Check Build Status
@@ -644,7 +645,8 @@ MIT License - See [LICENSE](LICENSE) for details
 
 See [CHANGELOG](documents/CHANGELOG/) for detailed version history.
 
-- **v0.3.0** - Performance & reliability improvements (Dec 2025)
+- **v1.0.0** - First stable release (Dec 2025)
+- **v0.3.0** - Performance & reliability improvements
 - **v0.2.0** - Initial feature release
 - **v0.1.0** - Beta version
 
@@ -666,4 +668,4 @@ Built for the AI-assisted coding era. Special thanks to users who provided feedb
 
 **Made with ❤️ for developers using AI code generators**
 
-*PyImport2Pkg v0.3.0 - December 2025*
+*PyImport2Pkg v1.0.0 - December 2025*
