@@ -1,115 +1,169 @@
 # PyImport2Pkg
 
-> 🐍 Python 导入语句到 pip 包名的反向映射工具
+> 🐍 Reverse mapping from Python import statements to pip package names
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Latest Release](https://img.shields.io/badge/release-v0.3.0-brightgreen.svg)](https://github.com/buptanswer/pyimport2pkg/releases/tag/v0.3.0)
 
-## 📋 目录
+**Language**: [English](README.md) | [中文](README.zh_CN.md)
 
-- [简介](#简介)
-- [核心功能](#核心功能)
-- [安装](#安装)
-- [快速开始](#快速开始)
-- [命令详解](#命令详解)
-- [高级特性](#高级特性)
+## 📋 Table of Contents
+
+- [Introduction](#introduction)
+- [Why This Tool?](#why-this-tool)
+- [Core Features](#core-features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Commands](#commands)
+- [Advanced Features](#advanced-features)
 - [Python API](#python-api)
-- [项目架构](#项目架构)
-- [常见问题](#常见问题)
-- [贡献指南](#贡献指南)
+- [Architecture](#architecture)
+- [FAQ](#faq)
+- [Contributing](#contributing)
 
 ---
 
-## 简介
+## Introduction
 
-**PyImport2Pkg** 解决了 AI 辅助编码时代的核心问题：
+**PyImport2Pkg** solves a core problem in the AI-assisted coding era:
 
-> 给定 Python 代码中的 import 语句，如何快速准确地知道需要安装哪个 pip 包？
+> Given Python import statements in code, how do we quickly and accurately know which pip packages need to be installed?
 
-### 为什么需要这个工具？
+### Problem Statement
 
-传统开发流程中，pip 包名和 import 模块名通常是相同的。但在实际情况中，许多流行的库存在**模块名 ≠ 包名**的情况：
+In traditional development, pip package names usually match import module names. However, in practice, many popular libraries have **package name ≠ module name**:
 
-- `import cv2` → 需要安装 `pip install opencv-python`
-- `from PIL import Image` → 需要安装 `pip install Pillow`
-- `import sklearn` → 需要安装 `pip install scikit-learn`
-- `import google.cloud.storage` → 需要安装 `pip install google-cloud-storage`
+- `import cv2` → install `pip install opencv-python`
+- `from PIL import Image` → install `pip install Pillow`
+- `import sklearn` → install `pip install scikit-learn`
+- `import google.cloud.storage` → install `pip install google-cloud-storage`
 
-当 AI 生成包含大量 import 的代码时，手动查找每个映射关系非常耗时且容易出错。**PyImport2Pkg** 自动化解决这个问题。
-
----
-
-## 核心功能
-
-### 🎯 主要特性
-
-| 功能 | 描述 |
-|------|------|
-| **项目分析** | 递归扫描 Python 项目，提取所有 import 语句，生成 requirements.txt |
-| **智能映射** | 通过优先级方案处理模块名与包名的映射关系 |
-| **命名空间支持** | 正确处理 `google.*`、`azure.*`、`zope.*` 等命名空间包 |
-| **可选依赖识别** | 区分必需依赖和可选依赖（try-except、平台特定导入等） |
-| **版本感知** | 自动检测 Python 目标版本，处理 backport 包 |
-| **高效数据库** | 智能增量更新、真正的并行处理、批量写入 |
-| **中断恢复** | 支持从中断点继续构建，不丢失进度 |
-
-### 映射优先级
-
-PyImport2Pkg 使用多层优先级方案确保映射准确率：
-
-1. **命名空间包** - 当检测到子模块时（如 `google.cloud.storage`）
-2. **硬编码映射** - 已知的特殊情况（如 `cv2` → `opencv-python`）
-3. **PyPI 数据库** - 从 wheel 文件的 `top_level.txt` 查找
-4. **智能猜测** - 假设模块名等于包名
+When AI generates code with dozens of imports, manually looking up each mapping is time-consuming and error-prone. **PyImport2Pkg** automates this.
 
 ---
 
-## 安装
+## Why This Tool?
 
-### 推荐方式
+### The Challenge
+
+When using AI code generators (like GitHub Copilot, Claude, or ChatGPT), you often get code like:
+
+```python
+import cv2
+import numpy as np
+from sklearn.model_selection import train_test_split
+from google.cloud import storage
+import requests
+```
+
+**Question**: Which packages do you need to `pip install`?
+
+### Without PyImport2Pkg
+
+- ❌ Manually Google each module name
+- ❌ Check PyPI documentation
+- ❌ Risk installing wrong packages
+- ❌ Takes 5-10 minutes for 10 imports
+
+### With PyImport2Pkg
 
 ```bash
-# 使用 pip 安装
-pip install pyimport2pkg
+$ pyimport2pkg analyze ./my_ai_generated_code
 
-# 或在开发模式安装
+Dependencies:
+  opencv-python
+  numpy
+  scikit-learn
+  google-cloud-storage
+  requests
+```
+
+**Done in seconds!** ✅
+
+---
+
+## Core Features
+
+### 🎯 Key Capabilities
+
+| Feature | Description |
+|---------|-------------|
+| **Project Analysis** | Recursively scan Python projects, extract all imports, generate requirements.txt |
+| **Smart Mapping** | Multi-tier priority system for accurate module→package mapping |
+| **Namespace Support** | Correctly handle `google.*`, `azure.*`, `zope.*` namespace packages |
+| **Optional Deps** | Distinguish required vs optional imports (try-except, platform-specific) |
+| **Version-Aware** | Auto-detect target Python version, handle backport packages |
+| **High-Performance DB** | Smart incremental updates, true parallel processing, batch writes |
+| **Interrupt Recovery** | Support resuming from breakpoint without data loss |
+
+### Mapping Priority
+
+PyImport2Pkg uses a multi-tier priority system:
+
+1. **Namespace packages** - When submodules detected (e.g., `google.cloud.storage` → `google-cloud-storage`)
+2. **Hardcoded mappings** - Known special cases (e.g., `cv2` → `opencv-python`)
+3. **PyPI database** - From `top_level.txt` in wheel files
+4. **Smart guess** - Assume module name equals package name
+
+---
+
+## Installation
+
+### Requirements
+
+- Python 3.10+
+- Minimal dependencies (only `httpx>=0.25.0`)
+
+### Install via pip
+
+```bash
+pip install pyimport2pkg
+```
+
+### Install in development mode
+
+```bash
+git clone https://github.com/buptanswer/pyimport2pkg.git
+cd pyimport2pkg
 pip install -e ".[dev]"
 ```
 
-### 需求
+### Verify Installation
 
-- Python 3.10+
-- 无重型依赖（仅 `httpx>=0.25.0`）
+```bash
+pyimport2pkg --version
+# pyimport2pkg 0.3.0
+```
 
 ---
 
-## 快速开始
+## Quick Start
 
-### 1️⃣ 分析单个项目
+### Analyze a Project
 
 ```bash
-# 分析当前目录，输出到终端
+# Analyze current directory
 pyimport2pkg analyze .
 
-# 输出示例：
+# Output:
 # Analyzing: .
 # Found imports from 24 files
-# 
+#
 # Dependencies:
 #   numpy
 #   pandas
 #   requests
-#   ... (more packages)
+#   sklearn
+#   matplotlib
 ```
 
-### 2️⃣ 查询单个模块
+### Query a Single Module
 
 ```bash
-# 查询模块对应的包
 pyimport2pkg query cv2
 
-# 输出示例：
+# Output:
 # Module: cv2
 # Source: hardcoded
 # Candidates:
@@ -118,542 +172,498 @@ pyimport2pkg query cv2
 #   3. opencv-python-headless
 ```
 
-### 3️⃣ 保存分析结果
+### Save Results
 
 ```bash
-# 保存为 requirements.txt
+# Save as requirements.txt
 pyimport2pkg analyze . -o requirements.txt
 
-# 保存为 JSON 格式
+# Save as JSON
 pyimport2pkg analyze . -o dependencies.json -f json
 ```
 
 ---
 
-## 命令详解
+## Commands
 
-### analyze - 分析项目
+### analyze - Analyze Project
 
-分析 Python 项目中的所有 import 语句，识别需要的依赖包。
+Scan Python project for imports and identify required packages.
 
 ```bash
-pyimport2pkg analyze <project_path> [options]
+pyimport2pkg analyze <path> [options]
 ```
 
-**选项：**
+**Options:**
 
-| 选项 | 说明 | 默认值 |
-|------|------|--------|
-| `-o, --output` | 输出文件路径 | 标准输出 |
-| `-f, --format` | 输出格式 (txt\|json\|simple) | txt |
-| `-t, --target-version` | 目标 Python 版本 | 当前版本 |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-o, --output` | Output file path | stdout |
+| `-f, --format` | Format (txt\|json\|simple) | txt |
+| `-t, --target-version` | Target Python version | current |
 
-**示例：**
+**Examples:**
 
 ```bash
-# 基础分析
+# Basic analysis
 pyimport2pkg analyze /path/to/project
 
-# 指定目标 Python 版本
+# Specify target Python version
 pyimport2pkg analyze . -t 3.11
 
-# 保存为 JSON 格式
+# Save as JSON
 pyimport2pkg analyze . -o deps.json -f json
+
+# Simple package list
+pyimport2pkg analyze . -f simple
 ```
-
-**输出格式：**
-
-- **txt** (默认)：标准 requirements.txt 格式
-- **json**：详细的 JSON 格式，包含依赖来源、是否可选等信息
-- **simple**：简单的包名列表，每行一个
 
 ---
 
-### query - 查询映射
+### query - Query Module Mapping
 
-查询单个 Python 模块对应的 pip 包名。
+Look up which pip package provides a specific module.
 
 ```bash
 pyimport2pkg query <module_name>
 ```
 
-**示例：**
+**Examples:**
 
 ```bash
-# 查询常见包
 pyimport2pkg query numpy       # → numpy
-pyimport2pkg query cv2         # → opencv-python（以及其他选项）
+pyimport2pkg query cv2         # → opencv-python (+ alternatives)
 pyimport2pkg query PIL         # → Pillow
 pyimport2pkg query google.cloud.storage  # → google-cloud-storage
 ```
 
 ---
 
-### build-db - 构建映射数据库
+### build-db - Build Mapping Database
 
-构建 PyPI 包的映射数据库。这个操作从 PyPI 下载元数据，建立完整的模块名→包名映射。
+Build PyPI package mapping database. This downloads metadata for top PyPI packages and builds the mapping.
 
 ```bash
 pyimport2pkg build-db [options]
 ```
 
-**选项：**
+**Options:**
 
-| 选项 | 说明 | 默认值 |
-|------|------|--------|
-| `--max-packages` | 目标包数量（PyPI top N） | 5000 |
-| `--concurrency` | 并发数 | 50 |
-| `--resume` | 恢复中断的构建 | 否 |
-| `--retry-failed` | 只重试失败的包 | 否 |
-| `--rebuild` | 强制重建（删除旧数据库） | 否 |
-| `--db-path` | 数据库文件路径 | `data/mapping.db` |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--max-packages` | Target number of PyPI packages | 5000 |
+| `--concurrency` | Number of parallel workers | 50 |
+| `--resume` | Resume interrupted build | — |
+| `--retry-failed` | Retry failed packages only | — |
+| `--rebuild` | Force rebuild (delete old DB) | — |
+| `--db-path` | Custom database path | `data/mapping.db` |
 
-**典型使用场景：**
+**Examples:**
 
 ```bash
-# 首次构建 5000 个包的数据库
+# Build database with top 5000 packages
 pyimport2pkg build-db --max-packages 5000
 
-# 如果中间被中断，恢复构建
+# Resume interrupted build
 pyimport2pkg build-db --resume
 
-# 重试上次失败的包
+# Retry only failed packages
 pyimport2pkg build-db --retry-failed
 
-# 扩展现有数据库
+# Expand existing database
 pyimport2pkg build-db --max-packages 10000
 
-# 强制重建
+# Force rebuild
 pyimport2pkg build-db --rebuild --max-packages 5000
 ```
 
-**特性：**
-
-- ✅ **智能增量更新** - 只处理新包，不重复处理已有的
-- ✅ **中断恢复** - 保存进度，支持从断点继续
-- ✅ **并行处理** - 高并发（默认 50）下载和处理
-- ✅ **批量写入** - 每 100 个包批量提交数据库
-- ✅ **速率限制检测** - 自动检测 PyPI 限流并暂停
-- ✅ **内存优化** - 分块处理大规模数据
+**Features:**
+- ✅ Smart incremental updates (no reprocessing)
+- ✅ Interrupt recovery with progress tracking
+- ✅ Parallel processing (50x by default)
+- ✅ Batch database writes
+- ✅ Rate limit detection & auto-recovery
+- ✅ Memory-optimized chunked processing
 
 ---
 
-### build-status - 查看构建状态
+### build-status - Check Build Status
 
-查看当前或上次的数据库构建进度。
+View current or last build status.
 
 ```bash
 pyimport2pkg build-status
-```
 
-**输出示例：**
-
-```
-构建状态: 进行中
-总包数: 5000
-已处理: 2500
-失败: 12
-成功率: 99.5%
-最后更新: 2025-12-06 10:30:45
+# Output:
+# Build Status: completed
+# Total: 5000
+# Processed: 5000
+# Failed: 8
+# Success Rate: 99.8%
+# Last Updated: 2025-12-06 10:30:45
 ```
 
 ---
 
-### db-info - 数据库信息
+### db-info - Database Information
 
-显示当前映射数据库的统计信息。
+Show database statistics.
 
 ```bash
 pyimport2pkg db-info
-```
 
-**输出示例：**
-
-```
-数据库信息
-===========
-数据库文件: data/mapping.db
-包数量: 5000
-模块总数: 25000
-最后更新: 2025-12-06 08:00:00
+# Output:
+# Database Information
+# ===================
+# Database: data/mapping.db
+# Packages: 5000
+# Modules: 25000
+# Last Updated: 2025-12-06 08:00:00
 ```
 
 ---
 
-## 高级特性
+## Advanced Features
 
-### v0.3.0 新特性
+### v0.3.0 Highlights
 
-#### 1. 智能增量更新
+#### 1. Smart Incremental Updates
 
-默认就是增量模式，扩展数据库时只处理新包：
+Extend your database without reprocessing:
 
 ```bash
-# 数据库已有 500 个包，想扩展到 1000 个
+# Database has 500 packages, expand to 1000
 pyimport2pkg build-db --max-packages 1000
-# 自动只处理新增的 500 个包
+# Automatically processes only 500 new packages
 ```
 
-#### 2. 构建进度跟踪
+#### 2. Interrupt & Resume
 
-系统自动保存构建进度，支持查看和恢复：
-
-- 实时保存已处理和失败的包信息
-- 中断恢复不会丢失已完成的工作
-- 可查看失败的包列表便于调试
-
-#### 3. 中断恢复 (--resume)
-
-从上次中断的位置继续构建：
+Resume from breakpoint:
 
 ```bash
-# 开始构建（可能被中断）
-pyimport2pkg build-db --max-packages 14100
+# Start build
+pyimport2pkg build-db --max-packages 5000
 
-# 中断后恢复（自动使用 14100）
+# Later, resume
 pyimport2pkg build-db --resume
 ```
 
-#### 4. 失败重试 (--retry-failed)
+#### 3. Failed Package Retry
 
-只重试上次失败的包，成功的包自动标记：
-
-```bash
-# 重试所有失败的包
-pyimport2pkg build-db --retry-failed
-
-# 多次重试，每次都只处理新失败的
-pyimport2pkg build-db --retry-failed
-```
-
-#### 5. 强制重建 (--rebuild)
-
-删除现有数据库，从头开始构建：
+Retry only failed packages:
 
 ```bash
-pyimport2pkg build-db --rebuild --max-packages 5000
+# First run: 860 failed
+pyimport2pkg build-db --retry-failed
+
+# Second run: only remaining failures
+pyimport2pkg build-db --retry-failed
 ```
 
-#### 6. 性能优化
+#### 4. Performance Improvements
 
-- **批量数据库写入** - 每 100 个包批量提交，性能提升 5-10 倍
-- **并发提升** - 默认 50 并发（v0.2.0 是 20）
-- **内存优化** - 分块处理（每 500 个包），支持 15000+ 包构建
-- **批量进度保存** - 每 100 个包保存一次进度
+- **10-50x faster** database writes (batch processing)
+- **50x parallel** concurrency (vs 20x in v0.2.0)
+- **Memory-optimized** chunked processing for 15000+ packages
+- **Batch progress saves** (every 100 packages)
 
-#### 7. 速率限制检测
+#### 5. Rate Limit Detection
 
-自动检测 PyPI 速率限制并暂停：
+Automatic PyPI rate limit handling:
 
 ```
-检测到连续 20 次失败，可能遇到速率限制。
-暂停 30 秒后重试 (第 1/5 次暂停)...
-继续处理...
+Detected 20 consecutive failures - possible rate limiting.
+Pausing 30 seconds before retry (pause 1/5)...
+Resuming...
 ```
 
-#### 8. 优雅中断处理
-
-按下 Ctrl+C 时安全退出：
+#### 6. Graceful Interruption (Ctrl+C)
 
 ```
 ^C
-正在保存进度，请稍候... (再次按 Ctrl+C 强制退出)
-构建已中断。已处理 2500/5000 个包。
-使用 --resume 继续构建。
+Saving progress, please wait... (Ctrl+C again to force quit)
+
+Build interrupted. Processed 2500/5000 packages.
+Use --resume to continue.
 ```
 
 ---
 
 ## Python API
 
-除了 CLI，PyImport2Pkg 也提供 Python API 供程序化调用：
+Use PyImport2Pkg programmatically:
 
-### 基础导入
-
-```python
-from pyimport2pkg import (
-    Scanner,
-    Parser,
-    Filter,
-    Mapper,
-    Resolver,
-    Exporter,
-    ImportInfo,
-    MappingResult,
-)
-```
-
-### 完整管道示例
+### Basic Usage
 
 ```python
+from pyimport2pkg import Scanner, Parser, Filter, Mapper, Exporter
 from pathlib import Path
-from pyimport2pkg import (
-    Scanner,
-    Parser,
-    Filter,
-    Mapper,
-    Exporter,
-)
 
-# 1. 扫描项目
+# 1. Scan project
 scanner = Scanner()
-python_files = scanner.scan(Path("./my_project"))
+files = scanner.scan(Path("./my_project"))
 
-# 2. 解析 import 语句
+# 2. Parse imports
 parser = Parser()
 imports = []
-for file_path in python_files:
-    file_imports = parser.parse(file_path)
-    imports.extend(file_imports)
+for file_path in files:
+    imports.extend(parser.parse(file_path))
 
-# 3. 过滤标准库和本地模块
+# 3. Filter stdlib & local modules
 filter = Filter(project_root=Path("./my_project"))
 filtered = filter.filter(imports)
 
-# 4. 映射到包名
+# 4. Map to packages
 mapper = Mapper()
-mapping_results = mapper.map(filtered)
+results = mapper.map(filtered)
 
-# 5. 解决冲突
-resolver = Resolver()
-resolved = resolver.resolve(mapping_results)
-
-# 6. 导出结果
+# 5. Export results
 exporter = Exporter()
-exporter.to_requirements_txt(resolved, "requirements.txt")
-exporter.to_json(resolved, "dependencies.json")
+exporter.to_requirements_txt(results, "requirements.txt")
 ```
 
-### 单个查询
+### Query Single Module
 
 ```python
 from pyimport2pkg import Mapper
 
 mapper = Mapper()
 result = mapper.map_single("cv2")
-print(result.package_candidates)
-# 输出: [
-#     PackageCandidate(name="opencv-python", downloads=1000000),
-#     PackageCandidate(name="opencv-contrib-python", downloads=500000),
-#     ...
-# ]
+for candidate in result.package_candidates:
+    print(f"{candidate.name}: {candidate.download_count} downloads")
 ```
 
-### 查询构建状态
+### Check Build Status
 
 ```python
 from pyimport2pkg.database import get_build_progress
 
 progress = get_build_progress()
 status = progress.get_status()
-print(status)
-# {
-#     'status': 'in_progress',
-#     'total': 5000,
-#     'processed': 2500,
-#     'failed': 10,
-#     'success_rate': 0.995
-# }
+print(f"Processed: {status['processed']}/{status['total']}")
+print(f"Failed: {status['failed']}")
+print(f"Success Rate: {status['success_rate']:.1%}")
 ```
 
 ---
 
-## 项目架构
+## Architecture
 
-### 系统设计
-
-PyImport2Pkg 采用管道架构（Pipeline Architecture），各模块职责清晰：
+### Pipeline Design
 
 ```
-Python 项目
+Python Project
     ↓
-Scanner (扫描器)
-    ↓ 找到所有 Python 文件
-Parser (解析器)
-    ↓ 提取 import 语句
-Filter (过滤器)
-    ↓ 移除标准库、本地模块
-Mapper (映射器)
-    ↓ 映射到 pip 包名
-Resolver (解决器)
-    ↓ 解决冲突和多选项
-Exporter (导出器)
+Scanner (scan for .py files)
     ↓
-requirements.txt / JSON / 列表
+Parser (extract imports via AST)
+    ↓
+Filter (remove stdlib, local modules)
+    ↓
+Mapper (map to pip packages)
+    ↓
+Resolver (handle conflicts)
+    ↓
+Exporter (generate output)
+    ↓
+requirements.txt / JSON / list
 ```
 
-### 核心模块
+### Core Modules
 
-| 模块 | 职责 | 关键方法 |
-|------|------|---------|
-| `scanner.py` | 递归查找 Python 文件，排除 venv、.git 等 | `scan()` |
-| `parser.py` | 使用 AST 解析 import，记录上下文 | `parse()` |
-| `filter.py` | 过滤标准库、本地模块、backport 检测 | `filter()` |
-| `mapper.py` | 多优先级映射查询 | `map()` |
-| `resolver.py` | 处理一对多冲突 | `resolve()` |
-| `exporter.py` | 导出多种格式 | `to_requirements_txt()` 等 |
-| `database.py` | 构建和查询 SQLite 映射数据库 | `build_database()` |
-
-### 数据结构
-
-```python
-# ImportInfo - 单个 import 语句
-ImportInfo(
-    module_name: str,              # e.g., "cv2"
-    file_path: Path,               # 源文件路径
-    line_number: int,              # 行号
-    is_optional: bool,             # try-except 中导入?
-    import_type: ImportType,       # 导入类型
-    import_context: ImportContext, # 上下文信息
-)
-
-# MappingResult - 映射结果
-MappingResult(
-    module_name: str,              # e.g., "cv2"
-    package_candidates: List[PackageCandidate],  # 候选包
-    mapping_source: str,           # 映射来源
-    confidence: float,             # 置信度
-)
-
-# PackageCandidate - 包候选项
-PackageCandidate(
-    name: str,                     # e.g., "opencv-python"
-    download_count: int,           # PyPI 下载数
-    is_recommended: bool,          # 推荐?
-)
-```
-
-### 映射优先级详解
-
-映射器按以下优先级查询：
-
-1. **命名空间包（带子模块）** - 如 `google.cloud.storage` → `google-cloud-storage`
-2. **硬编码映射** - 编码在 `mappings/hardcoded.py` 中
-3. **命名空间包（顶级）** - 如 `google` → `google-auth`
-4. **数据库查询** - 从 wheel 的 `top_level.txt`
-5. **智能猜测** - `module_name == package_name`
+| Module | Purpose |
+|--------|---------|
+| `scanner.py` | Recursively find Python files |
+| `parser.py` | Extract imports with context (AST-based) |
+| `filter.py` | Filter stdlib, local, backports |
+| `mapper.py` | Multi-tier package mapping |
+| `resolver.py` | Handle one-to-many conflicts |
+| `exporter.py` | Multi-format output |
+| `database.py` | PyPI mapping database |
 
 ---
 
-## 常见问题
+## Performance
 
-### Q: 如何排除某些目录（如 tests、venv）？
+### Analysis Speed
 
-A: Scanner 自动排除常见的目录：
-- `.git`, `.venv`, `venv`, `env`
-- `__pycache__`, `.pytest_cache`, `.tox`
-- `node_modules`, `.venv`
+| Project Size | Time | Files |
+|-------------|------|-------|
+| Small (<100 files) | < 1s | ~50 |
+| Medium (100-1000) | 1-5s | ~500 |
+| Large (1000+) | 5-30s | ~2000 |
 
-如需自定义，使用 Python API：
+### Database Build
+
+| Packages | Time | Memory |
+|----------|------|--------|
+| 5000 | 10-20 min | ~200 MB |
+| 10000 | 20-40 min | ~400 MB |
+| 15000 | 40-80 min | ~600 MB |
+
+---
+
+## FAQ
+
+### Q: How do I exclude certain directories?
+
+A: Scanner auto-excludes: `.git`, `.venv`, `venv`, `env`, `__pycache__`, etc.
+
+For custom exclusions, use Python API:
 
 ```python
 scanner = Scanner(exclude_dirs=["tests", "docs"])
 ```
 
-### Q: 支持相对导入吗？
+### Q: Does it support relative imports?
 
-A: 支持。Parser 会记录相对导入，Filter 会自动识别为本地模块。
+A: Yes. Relative imports are marked as local modules and filtered out.
 
-### Q: 如何处理条件导入（如 `if sys.platform == "win32"`）？
+### Q: What about conditional imports?
 
-A: 条件导入会被标记为 `is_optional=True`。使用 JSON 格式输出时会有特殊标记，便于手动审查。
+A: Conditional imports (inside if/try blocks) are marked as `optional=True`.
 
-### Q: 数据库构建需要多长时间？
+### Q: How long does database build take?
 
-A: 取决于包数量和网络速度：
-- 5000 个包：约 10-20 分钟（默认 50 并发）
-- 14000 个包：约 30-60 分钟
-- 支持中断恢复，可分次构建
+A: Depends on package count and network:
+- 5000 packages: ~10-20 min
+- 10000 packages: ~20-40 min
+- Supports pause/resume
 
-### Q: 如何更新 PyPI 映射数据库？
+### Q: Database not found error?
 
-A: 直接运行 `build-db`，会覆盖旧数据库：
+A: Either:
+1. Build database: `pyimport2pkg build-db`
+2. Or use online mode without local database
+
+### Q: Missing some imports?
+
+Possible reasons:
+1. Package not in top 5000 PyPI
+2. Package metadata incomplete
+3. Non-standard package structure
+
+---
+
+## Troubleshooting
+
+### No Python found
 
 ```bash
-pyimport2pkg build-db --rebuild --max-packages 10000
+# Use explicit Python
+python -m pyimport2pkg analyze .
 ```
 
-### Q: 为什么某些导入识别不出来？
-
-A: 可能原因：
-1. 数据库还未构建或数据不全
-2. 是非常新的或非常冷门的包
-3. 包的 `top_level.txt` 配置不当
-
-使用 `query` 命令诊断，或提交 Issue。
-
----
-
-## 性能指标
-
-### 分析速度
-
-| 项目规模 | 分析时间 | 扫描文件数 |
-|---------|---------|----------|
-| 小型（<100 文件） | < 1 秒 | ~50 |
-| 中型（100-1000 文件） | 1-5 秒 | ~500 |
-| 大型（1000+ 文件） | 5-30 秒 | ~2000 |
-
-### 数据库构建
-
-| 包数量 | 构建时间 | 内存占用 |
-|--------|---------|---------|
-| 5000 | 10-20 分钟 | ~200 MB |
-| 10000 | 20-40 分钟 | ~400 MB |
-| 15000 | 40-80 分钟 | ~600 MB |
-
----
-
-## 贡献指南
-
-### 报告 Bug
-
-如发现问题，请在 [GitHub Issues](https://github.com/buptanswer/pyimport2pkg/issues) 中提交，包含：
-
-1. Python 版本
-2. PyImport2Pkg 版本
-3. 完整错误堆栈
-4. 最小复现示例
-
-### 提交改进
-
-1. Fork 本仓库
-2. 创建特性分支：`git checkout -b feature/your-feature`
-3. 提交改动：`git commit -m "Add your feature"`
-4. 推送分支：`git push origin feature/your-feature`
-5. 发起 Pull Request
-
-### 开发环境
+### Permission denied
 
 ```bash
-# 克隆仓库
-git clone https://github.com/buptanswer/pyimport2pkg.git
+# Ensure read access to project directory
+chmod -R +r ./my_project
+```
+
+### Out of memory
+
+```bash
+# Build database in chunks
+pyimport2pkg build-db --max-packages 5000  # start small
+pyimport2pkg build-db --max-packages 10000 # expand later
+```
+
+---
+
+## Contributing
+
+### Report Bugs
+
+File issues at: https://github.com/buptanswer/pyimport2pkg/issues
+
+Include:
+- Python version
+- PyImport2Pkg version
+- Full error traceback
+- Minimal reproduction example
+
+### Contribute Code
+
+```bash
+# Fork repository
+git clone https://github.com/YOUR_USERNAME/pyimport2pkg.git
 cd pyimport2pkg
 
-# 安装开发依赖
+# Create feature branch
+git checkout -b feature/your-feature
+
+# Install dev dependencies
 pip install -e ".[dev]"
 
-# 运行测试
+# Run tests
 pytest tests/ -v
 
-# 查看代码覆盖率
-pytest tests/ --cov=pyimport2pkg
+# Make changes & commit
+git add .
+git commit -m "feat: your feature description"
+
+# Push & create pull request
+git push origin feature/your-feature
 ```
 
 ---
 
-## 许可证
+## Development
 
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
+### Setup
+
+```bash
+pip install -e ".[dev]"
+```
+
+### Run Tests
+
+```bash
+pytest tests/ -v
+pytest tests/ --cov=pyimport2pkg  # with coverage
+```
+
+### Test Specific Module
+
+```bash
+pytest tests/test_parser.py -v
+pytest tests/test_parser.py::TestParser::test_simple_import -v
+```
 
 ---
 
-## 联系方式
+## License
 
-- 📧 GitHub Issues：[提交问题](https://github.com/buptanswer/pyimport2pkg/issues)
-- 🐛 Bug 报告：[Bug Tracker](https://github.com/buptanswer/pyimport2pkg/issues)
-- 💡 功能建议：[Discussions](https://github.com/buptanswer/pyimport2pkg/discussions)
+MIT License - See [LICENSE](LICENSE) for details
 
 ---
 
-**Made with ❤️ for the AI-assisted coding era**
+## Changelog
+
+See [CHANGELOG](documents/CHANGELOG/) for detailed version history.
+
+- **v0.3.0** - Performance & reliability improvements (Dec 2025)
+- **v0.2.0** - Initial feature release
+- **v0.1.0** - Beta version
+
+---
+
+## Support
+
+- 📧 **Issues**: [GitHub Issues](https://github.com/buptanswer/pyimport2pkg/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/buptanswer/pyimport2pkg/discussions)
+- 📖 **Documentation**: [User Guide](documents/USER_GUIDE/)
+
+---
+
+## Acknowledgments
+
+Built for the AI-assisted coding era. Special thanks to users who provided feedback and testing!
+
+---
+
+**Made with ❤️ for developers using AI code generators**
+
+*PyImport2Pkg v0.3.0 - December 2025*
